@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="2s2r",
+    name="twoStwoR",
     version="0.1.0",
     description="MARL environment for Two Species, Two Resources (2S2R) problem",
     author="Isaac Campbell",
