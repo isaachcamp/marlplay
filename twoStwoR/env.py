@@ -53,7 +53,10 @@ class AgentState:
 
 @jdc.pytree_dataclass
 class EnvState:
-    """Represents the full environment state for a single Tree agent."""
+    """
+    Represents the full environment state with two AgentState instances for
+    the Tree and Fungus.
+    """
     grid: jax.Array   # (GRID_SIZE, GRID_SIZE) where values could be:
                       # 0 (empty), 1 (tree), 2 (fungus), 3 (fungus and tree)
     tree_agent: AgentState
@@ -61,14 +64,14 @@ class EnvState:
     step_count: jax.Array # To track episode length
     terminal: bool = False  # Flag to indicate if the episode is done
     # Solar irradiance for sugar production, can be modified for different scenarios
-    solar_irradiance: jax.Array = jdc.field(default_factory=lambda: jnp.array(200.0))
+    solar_irradiance: jax.Array = jdc.field(default_factory=lambda: jnp.array(400.0))
 
 
 class TwoSTwoR:
     """
     A minimal grid world environment with a single Tree and a single Fungus agent.
-    Both have continuous resource allocation actions, with discrete energy required to
-    produce seeds/fruiting bodies.
+    Both have continuous resource allocation actions, with discrete numbers of sugars 
+    required to produce seeds/fruiting bodies.
     
     Assume phosphorus is homogenously distributed in the environment, and both agents can
     access it but with different efficiencies.
@@ -149,8 +152,9 @@ class TwoSTwoR:
 
     def step_env(self, key: jax.Array, state: EnvState, actions: Dict[str, Dict[str, jax.Array]]):
         """
-        Applies Tree's actions to the environment and updates the state.
-        actions is a dict: 
+        Applies agent actions to the environment and updates the state.
+        
+        actions variable has the form: 
         {'tree': {'p_use': float, ' p_trade': float, 's_use': float, 's_trade': float,
                   'growth': float, 'defence': float, 'reproduction': float},
          'fungus': {'p_use': float, ' p_trade': float, 's_use': float, 's_trade': float,
@@ -216,9 +220,11 @@ class TwoSTwoR:
             A_c: Canopy area of the tree.
             Returns: Amount of sugars generated.
             """
-            K_p = 5000. # Half-saturation constant for sugar production
-            s_gen = jnp.floor(A_c * I_s * (p / (K_p + p)))
-            return s_gen
+            S_max = 1200. # Maximum sugar production rate
+            K_I = 400. # Half-saturation constant for sugar production
+            s_gen = jnp.floor(A_c * S_max * (I_s / (K_I + I_s)))
+            s_gen_clipped = jnp.clip(s_gen, 0, p / 3) # Hard limit: 3 P required per sugar
+            return s_gen_clipped
 
         # --- Calculate resource usage ---
         # Calculate number of seeds that can be produced based on reproduction energy
@@ -284,7 +290,7 @@ class TwoSTwoR:
             From "Allometric Relationships of Selected European Tree Species" by 
             Widlowski et al. (2003), pg. 27, EUROPEAN COMMISSION JOINT RESEARCH CENTRE.
             """
-            scaling_factor = 1.5  # Fungal hyphae spread more than tree canopy
+            scaling_factor = 1.5  # Fungal hyphae spread further than tree canopy
             dbh = biomass ** (1/2.601) / 0.0798
             C_r = 0.0821 * dbh + 0.7694
             A_c = jnp.pi * C_r**2  # Area in square meters

@@ -249,11 +249,13 @@ def test_step_env_tree_resource_allocation_handled():
 
     # Check sugars generated based on phosphorus and canopy area
     A_c = 4.47  # Assuming biomass = 0.1
-    K_p = 5000. # Half-saturation constant for sugar production
-    I_s = 200.0  # Assume a fixed amount of sunlight available
+    I_s = 400.0  # Assume a fixed amount of sunlight available
+    S_max = 1200. # Maximum sugar production rate
+    K_I = 400. # Half-saturation constant for sugar production
+    s_gen = jnp.floor(A_c * S_max * (I_s / (K_I + I_s)))
     p = actions['tree']['p_use']  # Phosphorus used by tree
 
-    sugars_generated = jnp.floor(A_c * I_s * (p / (K_p + p)))
+    sugars_generated = jnp.clip(s_gen, 0, p / 3)
     s_use = actions['tree']['growth'] + actions['tree']['defence'] # No seeds produced in this test.
 
     diff_t_sugars = - (s_use + actions['tree']['s_trade']) \

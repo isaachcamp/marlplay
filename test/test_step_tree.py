@@ -181,10 +181,11 @@ def test_step_tree_sugar_generation_low_phosphorus():
 
     # Check sugars generated based on phosphorus and canopy area
     A_c = 10.16  # Assuming biomass_to_canopy_area_allometry returns 1 for simplicity
-    K_p = 5000. # Half-saturation constant for sugar production
-    I_s = 200.0  # Assume a fixed amount of sunlight available
-
-    expected_sugars_generated = jnp.floor(A_c * I_s * (p / (K_p + p)))
+    I_s = 400.0  # Assume a fixed amount of sunlight available
+    S_max = 1200. # Maximum sugar production rate
+    K_I = 400. # Half-saturation constant for sugar production
+    s_gen = jnp.floor(A_c * S_max * (I_s / (K_I + I_s)))
+    expected_sugars_generated = jnp.clip(s_gen, 0, p / 3)
 
     # Check expected resources generated/absorbed.
     assert new_state.tree_agent.sugars == expected_sugars_generated + state.tree_agent.sugars
@@ -216,10 +217,11 @@ def test_step_tree_sugar_generation_high_phosphorus():
 
     # Check sugars generated based on phosphorus and canopy area
     A_c = 10.16
-    K_p = 5000. # Half-saturation constant for sugar production
-    I_s = 200.0  # Assume a fixed amount of sunlight available
-
-    expected_sugars_generated = jnp.floor(A_c * I_s * (p / (K_p + p)))
+    I_s = 400.0  # Assume a fixed amount of sunlight available
+    S_max = 1200. # Maximum sugar production rate
+    K_I = 400. # Half-saturation constant for sugar production
+    s_gen = jnp.floor(A_c * S_max * (I_s / (K_I + I_s)))
+    expected_sugars_generated = jnp.clip(s_gen, 0, p / 3)
 
     # Check expected resources generated/absorbed.
     assert new_state.tree_agent.sugars == expected_sugars_generated + state.tree_agent.sugars
