@@ -12,19 +12,22 @@ GRID_SIZE = 10
 MAX_EPISODE_STEPS = 100
 
 # Constants for the agents
-SEED_COST = 50.0        # Energy cost per seed or fruiting body
-SUGARS_TO_BIOMASS = 0.005 # Conversion rate of sugars to biomass
-P_AVAILABILITY = 10.0     # Phosphorus availability in the environment
-DEFENCE_CONSTANT = 0.05 # Scaling factor for defence increase
-PATHOGEN_ATTACK = 1. # Attack strength of pathogens on agent health
-TRADE_PER_CELL = 100
+SEED_COST = 50.0          # Energy cost per seed or spore
+SUGARS_TO_BIOMASS = 0.005 # Conversion rate of sugars to biomass, assumes both tree and fungus have the same conversion rate and metabolic efficiency.
+P_AVAILABILITY = 5.0      # Phosphorus availability in the environment
+DEFENCE_CONSTANT = .05    # Scaling factor for defence increase
+PATHOGEN_ATTACK = 1.      # Attack strength of pathogens on agent health
+TRADE_PER_CELL = 100      # Maximum amount of resources that can be traded per contact cell
+
+TREE_P_UPTAKE_EFFICIENCY = .05 # Fixed efficiency for P absorption of tree.
+FUNGUS_P_UPTAKE_EFFICIENCY = 1. # Fixed efficiency for P absorption of fungus.
 
 # Do I need shaped rewards?
-BASE_REW_SHAPING_PARAMS = {
-    "BIOMASS": 5, # reward for increasing biomass
-    "HEALTH": 1, # reward for defending health
-    "REPRODUCTION": 15, # reward for reproduction
-}
+# BASE_REW_SHAPING_PARAMS = {
+#     "BIOMASS": 5, # reward for increasing biomass
+#     "HEALTH": 1, # reward for defending health
+#     "REPRODUCTION": 15, # reward for reproduction
+# }
 
 
 @jdc.pytree_dataclass
@@ -238,8 +241,7 @@ class TwoSTwoR:
         # ---  Resource absorption  ---
         # Phosphorus absorption based on root area (same as canopy area for simplicity)
         A_c = biomass_to_canopy_area_allometry(state.tree_agent.biomass)
-        p_uptake_efficiency = 0.2 # Assume a fixed efficiency for absorption
-        p_acquired = jnp.floor(P_AVAILABILITY * p_uptake_efficiency * A_c)
+        p_acquired = jnp.floor(P_AVAILABILITY * TREE_P_UPTAKE_EFFICIENCY * A_c)
 
         # Sugars generated from sunlight, constrained by available phosphorus
         s_gen = gen_sugars(actions['p_use'], A_c, state.solar_irradiance)
@@ -307,8 +309,7 @@ class TwoSTwoR:
         # ---  Resource absorption  ---
         # Phosphorus absorption based on root area (same as canopy area for simplicity)
         A_c = biomass_to_area_allometry(state.fungus_agent.biomass)
-        p_uptake_efficiency = 1. # Assume a fixed efficiency for absorption
-        p_acquired = jnp.floor(P_AVAILABILITY * p_uptake_efficiency * A_c)
+        p_acquired = jnp.floor(P_AVAILABILITY * FUNGUS_P_UPTAKE_EFFICIENCY * A_c)
 
         # --- Update tree agent state ---
         # Update health and defence
