@@ -52,8 +52,8 @@ def gen_actions_set_policy(key) -> Dict[str, Dict[str, jax.Array]]:
             'p_trade': jnp.array(0.2),
             's_use': jnp.array(0.5),
             's_trade': jnp.array(0.2),
-            'growth': jnp.array(0.6),
-            'defence': jnp.array(0.2),
+            'growth': jnp.array(0.5),
+            'defence': jnp.array(0.1),
             'reproduction': jnp.array(0.2)
         },
         'fungus': {
