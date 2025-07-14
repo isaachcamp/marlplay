@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax_dataclasses as jdc
 
 from twoStwoR import TwoSTwoR
-from twoStwoR.env import TRADE_PER_CELL
+from twoStwoR.env import TRADE_PER_UNIT_AREA
 from test_utils import gen_random_actions
 
 
@@ -18,12 +18,18 @@ def test_step_trade_less_than_max_trade():
     # Initialize agents with some resources
     state = jdc.replace(
         state, tree_agent=jdc.replace(
-            state.tree_agent, phosphorus=jnp.array(20.0), sugars=jnp.array(50.0)
+            state.tree_agent,
+            phosphorus=jnp.array(20.0),
+            sugars=jnp.array(50.0),
+            radius=1.  # Set radius to 1.0 for contact area
         )
     )
     state = jdc.replace(
         state, fungus_agent=jdc.replace(
-            state.fungus_agent, phosphorus=jnp.array(50.0), sugars=jnp.array(10.0)
+            state.fungus_agent,
+            phosphorus=jnp.array(50.0), 
+            sugars=jnp.array(10.0),
+            radius=1.
         )
     )
 
@@ -43,9 +49,9 @@ def test_step_trade_less_than_max_trade():
 
     new_state = env.step_trade(state, actions)
 
-    # Check trades are capped by TRADE_PER_CELL
-    contact_area = 1.
-    max_trade = contact_area * TRADE_PER_CELL
+    # Check trades are capped by TRADE_PER_UNIT_AREA
+    contact_area = jnp.pi
+    max_trade = contact_area * TRADE_PER_UNIT_AREA
 
     assert (new_state.tree_agent.phosphorus - state.tree_agent.phosphorus) <= max_trade
     assert (new_state.tree_agent.sugars - state.tree_agent.sugars) <= max_trade
@@ -67,15 +73,20 @@ def test_step_trade_exceeds_max_trade():
     # Initialize agents with some resources
     state = jdc.replace(
         state, tree_agent=jdc.replace(
-            state.tree_agent, phosphorus=jnp.array(20.0), sugars=jnp.array(120.0)
+            state.tree_agent,
+            phosphorus=jnp.array(20.0),
+            sugars=jnp.array(120.0),
+            radius=.5,  # Set radius to .5 for contact area
         )
     )
     state = jdc.replace(
         state, fungus_agent=jdc.replace(
-            state.fungus_agent, phosphorus=jnp.array(150.0), sugars=jnp.array(10.0)
+            state.fungus_agent,
+            phosphorus=jnp.array(150.0),
+            sugars=jnp.array(10.0),
+            radius=.5,
         )
     )
-
 
     # Set up the grid with one cell contact for trade
     state.grid.at[grid_size // 2, grid_size // 2].set(3)  # Set contact area for trade
@@ -93,16 +104,18 @@ def test_step_trade_exceeds_max_trade():
 
     new_state = env.step_trade(state, actions)
 
-    # Check trades are capped by TRADE_PER_CELL
-    contact_area = 1.
-    max_trade = contact_area * TRADE_PER_CELL
+    # Check trades are capped by TRADE_PER_UNIT_AREA
+    contact_area = jnp.pi / 4
+    max_trade = jnp.floor(contact_area * TRADE_PER_UNIT_AREA)
+
+    print(f"Max trade: {max_trade}")
 
     assert (new_state.tree_agent.phosphorus - state.tree_agent.phosphorus) <= max_trade
     assert (new_state.tree_agent.sugars - state.tree_agent.sugars) <= max_trade
     assert (new_state.fungus_agent.phosphorus - state.fungus_agent.phosphorus) <= max_trade
     assert (new_state.fungus_agent.sugars - state.fungus_agent.sugars) <= max_trade
 
-    assert new_state.tree_agent.phosphorus == 120.0
-    assert new_state.tree_agent.sugars == 20.0
-    assert new_state.fungus_agent.phosphorus == 50.0
-    assert new_state.fungus_agent.sugars == 110.0
+    assert new_state.tree_agent.phosphorus == 20.0 + max_trade
+    assert new_state.tree_agent.sugars == 120.0 - max_trade
+    assert new_state.fungus_agent.phosphorus == 150.0 - max_trade
+    assert new_state.fungus_agent.sugars == 10.0 + max_trade

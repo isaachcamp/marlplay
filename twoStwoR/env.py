@@ -6,6 +6,8 @@ from jax import lax
 import jax.numpy as jnp
 import jax_dataclasses as jdc
 
+from twoStwoR.geometry import area_of_intersecting_circles
+
 
 # Constants for the grid world
 GRID_SIZE = 10
@@ -17,7 +19,7 @@ SUGARS_TO_BIOMASS = 0.005 # Conversion rate of sugars to biomass, assumes both t
 P_AVAILABILITY = 5.0      # Phosphorus availability in the environment
 DEFENCE_CONSTANT = .05    # Scaling factor for defence increase
 PATHOGEN_ATTACK = 1.      # Attack strength of pathogens on agent health
-TRADE_PER_CELL = 100      # Maximum amount of resources that can be traded per contact cell
+TRADE_PER_UNIT_AREA = 100      # Maximum amount of resources that can be traded per contact cell
 
 TREE_P_UPTAKE_EFFICIENCY = .05 # Fixed efficiency for P absorption of tree.
 FUNGUS_P_UPTAKE_EFFICIENCY = 1. # Fixed efficiency for P absorption of fungus.
@@ -52,6 +54,7 @@ class AgentState:
     sugars: jax.Array = jdc.field(default_factory=lambda: jnp.array(10.))
     health: jax.Array = jdc.field(default_factory=lambda: jnp.array(100.))
     defence: jax.Array = jdc.field(default_factory=lambda: jnp.array(1.0))
+    radius: jax.Array = jdc.field(default_factory=lambda: jnp.array(0.0))
 
 
 @jdc.pytree_dataclass
@@ -212,7 +215,7 @@ class TwoSTwoR:
             dbh = biomass ** (1/2.601) / 0.0798
             C_r = 0.0821 * dbh + 0.7694
             A_c = jnp.pi * C_r**2  # Area in square meters
-            return A_c
+            return A_c, C_r
 
         def gen_sugars(p: jax.Array, A_c: jax.Array, I_s: jax.Array):
             """
@@ -240,7 +243,7 @@ class TwoSTwoR:
 
         # ---  Resource absorption  ---
         # Phosphorus absorption based on root area (same as canopy area for simplicity)
-        A_c = biomass_to_canopy_area_allometry(state.tree_agent.biomass)
+        A_c, r_c = biomass_to_canopy_area_allometry(state.tree_agent.biomass)
         p_acquired = jnp.floor(P_AVAILABILITY * TREE_P_UPTAKE_EFFICIENCY * A_c)
 
         # Sugars generated from sunlight, constrained by available phosphorus
@@ -268,6 +271,7 @@ class TwoSTwoR:
                 health=state.tree_agent.health - health_loss,
                 biomass=state.tree_agent.biomass + biomass_increase,
                 defence=state.tree_agent.defence + defence_increase,
+                radius=r_c,
             )
         )
 
@@ -296,7 +300,7 @@ class TwoSTwoR:
             dbh = biomass ** (1/2.601) / 0.0798
             C_r = 0.0821 * dbh + 0.7694
             A_c = jnp.pi * C_r**2  # Area in square meters
-            return A_c * scaling_factor
+            return A_c * scaling_factor, C_r * jnp.sqrt(scaling_factor)  # Return area and radius
 
         # --- Calculate resource usage ---
         # Calculate fruiting bodies produced based on reproduction energy.
@@ -308,7 +312,7 @@ class TwoSTwoR:
 
         # ---  Resource absorption  ---
         # Phosphorus absorption based on root area (same as canopy area for simplicity)
-        A_c = biomass_to_area_allometry(state.fungus_agent.biomass)
+        A_c, r_c = biomass_to_area_allometry(state.fungus_agent.biomass)
         p_acquired = jnp.floor(P_AVAILABILITY * FUNGUS_P_UPTAKE_EFFICIENCY * A_c)
 
         # --- Update tree agent state ---
@@ -333,6 +337,7 @@ class TwoSTwoR:
                 health=state.fungus_agent.health - health_loss,
                 biomass=state.fungus_agent.biomass + biomass_increase,
                 defence=state.fungus_agent.defence + defence_increase,
+                radius=r_c
             )
         )
 
@@ -357,11 +362,15 @@ class TwoSTwoR:
 
         # ---  Handle trade actions  ---
         # Clip trades for limited phosphorus and sugar supply.
-        contact_area = jnp.where(state.grid == 3, 1, 0).sum(dtype=jnp.float32) # Count overlapping cells
+        # contact_area = jnp.where(state.grid == 3, 1, 0).sum(dtype=jnp.float32) # Count overlapping cells
+        contact_area = area_of_intersecting_circles(
+            state.tree_agent.position, state.tree_agent.radius,
+            state.fungus_agent.position, state.fungus_agent.radius
+        )
 
         def cap_trade(x):
             """Set maximum trade based on contact area."""
-            max_trade = contact_area * TRADE_PER_CELL
+            max_trade = jnp.floor(contact_area * TRADE_PER_UNIT_AREA)
             return jnp.clip(x, 0, max_trade)
 
         # Cap trades to maximum allowed per contact cell

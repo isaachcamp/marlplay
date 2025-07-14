@@ -25,11 +25,21 @@ def test_environment_reset_state():
     assert (state.tree_agent.position == jax.numpy.array([grid_size // 2, grid_size // 2])).all()  # Assuming tree starts at center (2, 2)
     assert state.tree_agent.species_id == 0  # Assuming species_id for Tree is 0
     assert state.tree_agent.health == 100.0  # Assuming initial health is 100
+    assert state.tree_agent.biomass == .1  # Assuming initial biomass is 0.1
+    assert state.tree_agent.phosphorus == 0.0  # Assuming initial phosphorus is 0
+    assert state.tree_agent.sugars == 10.0  # Assuming initial sugars is 10
+    assert state.tree_agent.defence == 1.0  # Assuming initial defence is 1.0
+    assert state.tree_agent.radius == 0.0  # Assuming initial radius is 0
 
     assert state.fungus_agent.species_id == 1  # Assuming species_id for Fungus is 1
     assert state.fungus_agent.position.shape == (2,)
     assert (state.fungus_agent.position - jax.numpy.array([grid_size // 2, grid_size // 2]) <= 1).all()  # Fungus starts near the center, within 1 unit distance
     assert state.fungus_agent.health == 100.0  # Assuming initial health is 100
+    assert state.fungus_agent.biomass == .1  # Assuming initial biomass is 0.1
+    assert state.fungus_agent.phosphorus == 0.0  # Assuming initial phosphorus is 0
+    assert state.fungus_agent.sugars == 10.0  # Assuming initial sugars is 10
+    assert state.fungus_agent.defence == 1.0  # Assuming initial defence is 1.0
+    assert state.fungus_agent.radius == 0.0  # Assuming initial radius is 0
 
 def test_environment_observation():
     grid_size = 5
