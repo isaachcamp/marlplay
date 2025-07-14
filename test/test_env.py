@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 import jax_dataclasses as jdc
 
-from twoStwoR import TwoSTwoR, P_AVAILABILITY
+from twoStwoR import TwoSTwoR, P_AVAILABILITY, TREE_P_UPTAKE_EFFICIENCY
 from test_utils import gen_random_actions
 
 
@@ -262,7 +262,7 @@ def test_step_env_tree_resource_allocation_handled():
         + (sugars_generated + actions['fungus']['s_trade']) # - 40. - 30. + 4. + 0.
 
     # Check phosphorus resources by tree.
-    p_acquired = jnp.floor(A_c * P_AVAILABILITY * 0.2)  # fixed efficiency for absorption (0.2)
+    p_acquired = jnp.floor(A_c * P_AVAILABILITY * TREE_P_UPTAKE_EFFICIENCY)
 
     diff_t_p = - (actions['tree']['p_use'] + actions['tree']['p_trade']) \
         + actions['fungus']['p_trade'] + p_acquired  # - 10. - 0. + 25. + 8.

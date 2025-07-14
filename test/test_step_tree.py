@@ -6,7 +6,7 @@ import jax_dataclasses as jdc
 from twoStwoR import TwoSTwoR
 from twoStwoR.env import (
     DEFENCE_CONSTANT, SUGARS_TO_BIOMASS, P_AVAILABILITY,
-    PATHOGEN_ATTACK, SEED_COST
+    PATHOGEN_ATTACK, SEED_COST, TREE_P_UPTAKE_EFFICIENCY,
 )
 from test_utils import gen_random_actions
 
@@ -151,8 +151,8 @@ def test_step_tree_phosphorus_absorption():
     new_state, _, _ = env.step_tree(key, state, actions['tree'])
 
     # Check phosphorus is absorbed
-    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.2
-    assert new_state.tree_agent.phosphorus == 2. * P_AVAILABILITY
+    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.05
+    assert new_state.tree_agent.phosphorus == jnp.floor(0.5 * P_AVAILABILITY)
     assert new_state.tree_agent.sugars == 10.  # No sugars generated with no initial P.
 
 def test_step_tree_sugar_generation_low_phosphorus():
@@ -189,7 +189,9 @@ def test_step_tree_sugar_generation_low_phosphorus():
 
     # Check expected resources generated/absorbed.
     assert new_state.tree_agent.sugars == expected_sugars_generated + state.tree_agent.sugars
-    assert new_state.tree_agent.phosphorus == 0. + 20. # All phosphorus used, 20 added from absorption
+    
+    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.05
+    assert new_state.tree_agent.phosphorus == jnp.floor(10.15 * TREE_P_UPTAKE_EFFICIENCY * P_AVAILABILITY)
 
 def test_step_tree_sugar_generation_high_phosphorus():
     grid_size = 5
@@ -225,4 +227,6 @@ def test_step_tree_sugar_generation_high_phosphorus():
 
     # Check expected resources generated/absorbed.
     assert new_state.tree_agent.sugars == expected_sugars_generated + state.tree_agent.sugars
-    assert new_state.tree_agent.phosphorus == 0. + 20. # All phosphorus used, 20 added from absorption
+
+    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.05
+    assert new_state.tree_agent.phosphorus == jnp.floor(10.15 * TREE_P_UPTAKE_EFFICIENCY * P_AVAILABILITY)
