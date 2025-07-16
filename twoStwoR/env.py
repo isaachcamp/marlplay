@@ -409,29 +409,35 @@ class TwoSTwoR:
             total = g + d + r
             return g / total, d / total, r / total
 
-        # Control negative values here?
-
+        # Prevent negative values.
+        p_use = jnp.clip(actions['p_use'], 0)
+        p_trade = jnp.clip(actions['p_trade'], 0)
+        s_use = jnp.clip(actions['s_use'], 0)
+        s_trade = jnp.clip(actions['s_trade'], 0)
+        growth = jnp.clip(actions['growth'], 0)
+        defence = jnp.clip(actions['defence'], 0)
+        reproduction = jnp.clip(actions['reproduction'], 0)
 
         # Constrain use and trade actions for sugars and phosphorus.
         p_use, p_trade = jax.lax.cond(
-            actions['p_use'] + actions['p_trade'] > 1,
+            p_use + p_trade > 1,
             lambda x: constrain_use_trade(*x),
             lambda x: x,
-            (actions['p_use'], actions['p_trade'])
+            (p_use, p_trade)
         )
         s_use, s_trade = jax.lax.cond(
-            actions['s_use'] + actions['s_trade'] > 1,
+            s_use + s_trade > 1,
             lambda x: constrain_use_trade(*x),
             lambda x: x,
-            (actions['s_use'], actions['s_trade'])
+            (s_use, s_trade)
         )
 
         # Constrain resource allocation to ensure they sum to 1 or less.
         growth, defence, reproduction = jax.lax.cond(
-            actions['growth'] + actions['defence'] + actions['reproduction'] > 1,
+            growth + defence + reproduction > 1,
             lambda x: constrain_resource_allocation(*x),
             lambda x: x,
-            (actions['growth'], actions['defence'], actions['reproduction'])
+            (growth, defence, reproduction)
         )
 
         # Update actions with constrained values

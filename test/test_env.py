@@ -205,6 +205,25 @@ def test_constrain_allocation_all_zeroes():
     assert jax.numpy.sum(jnp.array(p_allocation)) <= 1.0
     assert jax.numpy.sum(jnp.array(s_use_allocation)) <= 1.0
 
+def test_constrain_allocation_negative_values():
+    # Test with actions that contain negative values
+    # Ensure no negative values in the constrained actions
+    env = TwoSTwoR()
+
+    actions = {
+        'p_use': jnp.array(-0.2),
+        'p_trade': jnp.array(0.3),
+        's_use': jnp.array(-0.1),
+        's_trade': jnp.array(0.5),
+        'growth': jnp.array(-0.4),
+        'defence': jnp.array(0.2),
+        'reproduction': jnp.array(0.3),
+    }
+
+    a = env.constrain_allocation(actions)
+
+    assert [val for val in a.values() if val < 0] == []
+
 def test_allocate_resources_integer_values():
     grid_size = 5
     env = TwoSTwoR(grid_size=grid_size)
