@@ -41,6 +41,21 @@ def test_environment_reset_state():
     assert state.fungus_agent.defence == 1.0  # Assuming initial defence is 1.0
     assert state.fungus_agent.radius == 0.0  # Assuming initial radius is 0
 
+def test_env_reset_jittable():
+    env = TwoSTwoR()
+    key = jax.random.PRNGKey(0)
+    reset_fn = jax.jit(env.reset)
+    obs, state = reset_fn(key)
+
+    assert 'tree' in obs
+    assert 'fungus' in obs
+
+    tree_obs = obs['tree']
+    fungus_obs = obs['fungus']
+
+    assert tree_obs.shape == (6,)  # Position (2) + phosphorus (1) + sugars (1) + health (1)
+    assert fungus_obs.shape == (6,)  # Same structure for fungus
+
 def test_environment_observation():
     grid_size = 5
     env = TwoSTwoR(grid_size=grid_size)
@@ -224,6 +239,9 @@ def test_constrain_allocation_negative_values():
 
     assert [val for val in a.values() if val < 0] == []
 
+def test_jittable_constrain_allocation():
+    assert jax.jit(TwoSTwoR().constrain_allocation)
+
 def test_allocate_resources_integer_values():
     grid_size = 5
     env = TwoSTwoR(grid_size=grid_size)
@@ -349,6 +367,17 @@ def test_step_env_fungus_resource_allocation_handled():
     # Check expected resources generated/absorbed/traded by tree.
     assert new_state.fungus_agent.sugars ==  state.fungus_agent.sugars + diff_f_sugars
     assert new_state.fungus_agent.phosphorus == state.fungus_agent.phosphorus + diff_f_p
+
+def test_step_env_jittable():
+    env = TwoSTwoR()
+    key = jax.random.PRNGKey(0)
+    _, state = env.reset(key)
+
+    actions = gen_random_actions(key)
+
+    # Check if step_env is jittable
+    step_env_jit = jax.jit(env.step_env)
+    assert step_env_jit(key, state, actions) is not None
 
 def test_step_env_state_update():
     grid_size = 5
