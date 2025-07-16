@@ -91,25 +91,24 @@ class TwoSTwoR:
         Generates observations for the agents.
         Both agents observe their own state and overlapping positions with the other agent.
         """
+        intersect = area_of_intersecting_circles(
+            state.tree_agent.position, state.tree_agent.radius,
+            state.fungus_agent.position, state.fungus_agent.radius
+        ) > 0
+
         tree_obs = jnp.concatenate([
             state.tree_agent.position,
             state.tree_agent.phosphorus[None],  # Convert to 1D array
             state.tree_agent.sugars[None],
             state.tree_agent.health[None],
-            jnp.array(
-                [jnp.all(state.tree_agent.position == state.fungus_agent.position, axis=0)],
-                dtype=jnp.int32
-            ) # Detect contact with fungus (1 if overlap, else 0)
+            jnp.array([intersect], dtype=jnp.int32) # Detect contact with fungus (1 if true, else 0)
         ])
         fungus_obs = jnp.concatenate([
             state.fungus_agent.position,
             state.fungus_agent.phosphorus[None],
             state.fungus_agent.sugars[None],
             state.fungus_agent.health[None],
-            jnp.array(
-                [jnp.all(state.tree_agent.position == state.fungus_agent.position, axis=0)],
-                dtype=jnp.int32
-            ) # Detect contact with tree (1 if overlap, else 0)
+            jnp.array([intersect], dtype=jnp.int32) # Detect contact with tree (1 if true, else 0)
         ])
         return {'tree': tree_obs, 'fungus': fungus_obs}
 

@@ -56,7 +56,7 @@ def test_env_reset_jittable():
     assert tree_obs.shape == (6,)  # Position (2) + phosphorus (1) + sugars (1) + health (1)
     assert fungus_obs.shape == (6,)  # Same structure for fungus
 
-def test_environment_observation():
+def test_environment_observations():
     grid_size = 5
     env = TwoSTwoR(grid_size=grid_size)
     key = jax.random.PRNGKey(0)
@@ -81,6 +81,24 @@ def test_environment_observation():
     assert fungus_obs[2] == 0.0  # Assuming initial phosphorus is 0
     assert fungus_obs[3] == 10.0  # Assuming initial sugars is 10
     assert fungus_obs[4] == 100.0  # Assuming initial health
+
+def test_environment_observations_overlap():
+    grid_size = 5
+    env = TwoSTwoR(grid_size=grid_size)
+    key = jax.random.PRNGKey(0)
+
+    _, state = env.reset(key)
+
+    state = jdc.replace(
+        state,
+        tree_agent=jdc.replace(state.tree_agent, radius=jnp.array(1.0)),
+        fungus_agent=jdc.replace(state.fungus_agent, radius=jnp.array(1.0))
+    ) # Start with zero radius by default, so set them to 1.0 to ensure overlap.
+
+    obs = env._get_obs(state)  # Ensure the observation is generated
+
+    tree_obs = obs['tree']
+    fungus_obs = obs['fungus']
 
     if (tree_obs[:2] == fungus_obs[:2]).all():
         assert tree_obs[5] == 1 # Overlap with fungus
