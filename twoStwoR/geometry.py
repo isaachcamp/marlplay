@@ -43,3 +43,15 @@ def area_of_intersecting_circles(
         ),
         (d, r1, r2)
     )
+
+
+if __name__ == "__main__":
+    # Example usage
+    xy1 = jnp.array([0.0, 0.0])
+    r1 = jnp.array(2.0)
+    xy2 = jnp.array([1., 1.])
+    r2 = jnp.array(2.0)
+
+    jit_area = jax.jit(area_of_intersecting_circles)  # JIT compile the function
+    area = jit_area(xy1, r1, xy2, r2)
+    print(f"Area of intersection: {area}")
