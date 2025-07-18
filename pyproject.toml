@@ -9,6 +9,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "jax>=0.6.2",
     "jax-dataclasses>=1.6.2",
+    "jaxmarl>=0.0.2",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "pytest-mock>=3.14.1",
