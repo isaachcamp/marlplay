@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "distrax>=0.1.5",
     "ipykernel>=6.29.5",
     "jax>=0.6.2",
     "jax-dataclasses>=1.6.2",
