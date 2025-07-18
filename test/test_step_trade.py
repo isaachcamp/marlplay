@@ -3,8 +3,7 @@ import jax
 import jax.numpy as jnp
 import jax_dataclasses as jdc
 
-from twoStwoR import TwoSTwoR
-from twoStwoR.env import TRADE_PER_UNIT_AREA
+from twoStwoR import TwoSTwoR, TRADE_PER_UNIT_AREA
 from test_utils import gen_random_actions
 
 
