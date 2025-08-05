@@ -93,7 +93,7 @@ class TwoSTwoR:
             'growth', 'defence', 'reproduction'  # Use sugar actions
         ]
         obs = [
-            'position_x', 'position_y', 'phosphorus', 'sugars', 'health', 'other_sugars', 'other_phosphorus'
+            'position_x', 'position_y', 'phosphorus', 'sugars', 'health', 'intersect'
         ]  # Observations for each agent
 
         self.agents = ['tree', 'fungus']
