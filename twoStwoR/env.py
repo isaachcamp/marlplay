@@ -5,6 +5,7 @@ import jax
 from jax import lax
 import jax.numpy as jnp
 import jax_dataclasses as jdc
+from jaxmarl.environments import spaces
 
 from twoStwoR.geometry import area_of_intersecting_circles
 
@@ -82,9 +83,30 @@ class TwoSTwoR:
     Assume phosphorus is homogenously distributed in the environment, and both agents can
     access it but with different efficiencies.
     """
-    def __init__(self, grid_size=GRID_SIZE):
+    def __init__(self, grid_size=GRID_SIZE, max_episode_steps=MAX_EPISODE_STEPS):
         self.grid_size = grid_size
-        self.max_episode_steps = MAX_EPISODE_STEPS
+        self.max_episode_steps = max_episode_steps
+
+        self.actions = [
+            'p_use', 'p_trade',  # Phosphorus actions
+            's_use', 's_trade',  # Sugar actions
+            'growth', 'defence', 'reproduction'  # Use sugar actions
+        ]
+        obs = [
+            'position_x', 'position_y', 'phosphorus', 'sugars', 'health', 'other_sugars', 'other_phosphorus'
+        ]  # Observations for each agent
+
+        self.agents = ['tree', 'fungus']
+        # Count number of agent types in self.agents
+        # self.num_agents = (self.agents.count('tree'), self.agents.count('fungus'))
+        self.num_agents = len(self.agents)
+
+        self.action_spaces = {
+            a: [] for a in self.agents
+        }
+        self.observation_spaces = {
+            a: spaces.Tuple((0,) * len(obs)) for a in self.agents
+        }
 
     def _get_obs(self, state: EnvState):
         """
@@ -95,20 +117,21 @@ class TwoSTwoR:
             state.tree_agent.position, state.tree_agent.radius,
             state.fungus_agent.position, state.fungus_agent.radius
         ) > 0
+        intersect = jnp.where(intersect, 1, 0)  # Convert to binary (1 if intersecting, else 0)
 
         tree_obs = jnp.concatenate([
             state.tree_agent.position,
             state.tree_agent.phosphorus[None],  # Convert to 1D array
             state.tree_agent.sugars[None],
             state.tree_agent.health[None],
-            jnp.array([intersect], dtype=jnp.int32) # Detect contact with fungus (1 if true, else 0)
+            intersect[None],
         ])
         fungus_obs = jnp.concatenate([
             state.fungus_agent.position,
             state.fungus_agent.phosphorus[None],
             state.fungus_agent.sugars[None],
             state.fungus_agent.health[None],
-            jnp.array([intersect], dtype=jnp.int32) # Detect contact with tree (1 if true, else 0)
+            intersect[None]
         ])
         return {'tree': tree_obs, 'fungus': fungus_obs}
 
@@ -155,18 +178,17 @@ class TwoSTwoR:
 
         return lax.stop_gradient(obs), lax.stop_gradient(state)
 
-    def step_env(self, key: jax.Array, state: EnvState, actions: Dict[str, Dict[str, jax.Array]]):
+    def step_env(self, key: jax.Array, state: EnvState, actions: Dict[str, jax.Array]):
         """
         Applies agent actions to the environment and updates the state.
         
-        actions variable has the form: 
-        {'tree': {'p_use': float, ' p_trade': float, 's_use': float, 's_trade': float,
-                  'growth': float, 'defence': float, 'reproduction': float},
-         'fungus': {'p_use': float, ' p_trade': float, 's_use': float, 's_trade': float,
-                  'growth': float, 'defence': float, 'reproduction': float}}
+        actions variable has the form: {'tree': jnp.ndarray[7], 'fungus': jnp.ndarray[7]}
 
-        where each action is a continuous value representing the amount of energy allocated.
+        where each action is a continuous value representing the amount of resource allocated.
         """
+        # Reformat actions from Dict[str,jax.Array] to Dict[str, Dict[str, jax.Array]] using the action names.
+        actions = jax.tree.map(lambda x: dict(zip(self.actions, x)), actions)
+
         # Constrain allocations within available resources for both agents.
         actions['tree'] = self.constrain_allocation(actions['tree'])
         actions['fungus'] = self.constrain_allocation(actions['fungus'])
@@ -270,16 +292,28 @@ class TwoSTwoR:
                 health=state.tree_agent.health - health_loss,
                 biomass=state.tree_agent.biomass + biomass_increase,
                 defence=state.tree_agent.defence + defence_increase,
-                radius=r_c,
+                radius=r_c
             )
         )
 
         # Rewards for tree based on allocation (simplified)
         reward = 0.0
-        shaped_rewards = {}
+        shaped_rewards = {
+            "seeds_generated": seeds_generated,
+            "growth": actions['growth'],
+            "defence": actions['defence'],
+            "reproduction": actions['reproduction'],
+            "sugars_used": s_used,
+            "phosphorus_used": actions['p_use'],
+            "sugars_generated": s_gen,
+            "phosphorus_acquired": p_acquired,
+            "s_trade": actions['s_trade'],
+            "p_trade": actions['p_trade']
+        }
 
-        reward += biomass_increase * 0.5 # Reward for growth
-        reward += state.tree_agent.defence * 0.1 # Might not be necessary?
+        # reward += biomass_increase * 0.2 # Reward for growth
+        # reward += actions['s_trade'] * 0.01 # Reward for trading sugars
+        # reward += state.tree_agent.defence * 0.1 # Might not be necessary?
         reward += seeds_generated * 1.5 # Reward for each seed produced
 
         return state, reward, shaped_rewards
@@ -342,10 +376,22 @@ class TwoSTwoR:
 
         # Rewards for fungus based on allocation.
         reward = 0.0
-        shaped_rewards = {}
+        shaped_rewards = {
+            "seeds_generated": fruits_generated,
+            "growth": actions['growth'],
+            "defence": actions['defence'],
+            "reproduction": actions['reproduction'],
+            "sugars_used": s_used,
+            "phosphorus_used": actions['p_use'],
+            "sugars_generated": jnp.zeros_like(s_used),  # Fungus does not generate sugars
+            "phosphorus_acquired": p_acquired,
+            "s_trade": actions['s_trade'],
+            "p_trade": actions['p_trade']
+        }
 
-        reward += biomass_increase * 0.5 # Reward for growth
-        reward += state.fungus_agent.defence * 0.1 # Might not be necessary?
+        # reward += biomass_increase * 0.2 # Reward for growth
+        # reward += actions['p_trade'] * 0.1
+        # reward += state.fungus_agent.defence * 0.1 # Might not be necessary?
         reward += fruits_generated * 1.5 # Reward for each fruiting body produced
 
         return state, reward, shaped_rewards
@@ -353,7 +399,7 @@ class TwoSTwoR:
     def step_trade(self, state: EnvState, actions: Dict[str, Dict[str, jax.Array]]):
         """
         Handle trade actions between Tree and Fungus agents.
-        
+    
         Will this work algorthmically if there is no explicit reward given for this step?
         """
         tree_actions = actions['tree']
