@@ -18,7 +18,9 @@ def test_step_tree_defence():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with sugars and allocate all to defence.
     state = jdc.replace(state,
@@ -39,7 +41,8 @@ def test_step_tree_defence():
     assert new_state.tree_agent.sugars == 0. # Check sugars are used up.
 
     # Also tests growth and reproduction are unchanged as reward would be higher.
-    assert reward == (state.tree_agent.defence + (10.0 * DEFENCE_CONSTANT)) * 0.1
+    # ---- No reward for defence in this version of the environment. ----
+    # assert reward == (state.tree_agent.defence + (10.0 * DEFENCE_CONSTANT)) * 0.1
 
 def test_step_tree_growth():
     grid_size = 5
@@ -48,7 +51,9 @@ def test_step_tree_growth():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with sugars and allocate all to growth.
     state = jdc.replace(state,
@@ -72,7 +77,8 @@ def test_step_tree_growth():
     assert new_state.tree_agent.biomass == state.tree_agent.biomass + expected_biomass_increase
 
     # Also tests defence and reproduction are unchanged as reward would be higher.
-    assert reward == expected_biomass_increase * 0.5 + 0.1 # +0.1 for base defence
+    # ---- No reward for growth in this version of the environment. ----
+    # assert reward == expected_biomass_increase * 0.5 + 0.1 # +0.1 for base defence
 
 
 def test_step_tree_reproduction():
@@ -82,7 +88,9 @@ def test_step_tree_reproduction():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with sugars and allocate all to reproduction.
     state = jdc.replace(state,
@@ -101,7 +109,7 @@ def test_step_tree_reproduction():
     # Check number of seeds generated via rewards
     # Also tests defence and reproduction are unchanged as reward would be higher.
     no_seeds_generated = jnp.floor(100.0 / SEED_COST)
-    assert reward == (no_seeds_generated * 1.5) + 0.1 # each seed worth 1.5 reward; +0.1 for base defence
+    assert reward == (no_seeds_generated * 1.5) # each seed worth 1.5 reward
     assert new_state.tree_agent.sugars == 0. # Check sugars are used up.
 
 def test_step_tree_reproduction_non_integer_seeds():
@@ -111,7 +119,9 @@ def test_step_tree_reproduction_non_integer_seeds():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with sugars and allocate all to reproduction.
     state = jdc.replace(state,
@@ -130,7 +140,7 @@ def test_step_tree_reproduction_non_integer_seeds():
 
     # Check number of seeds generated via rewards
     no_seeds_generated = jnp.floor(120.0 / SEED_COST) # This should be 2.4, so 2 seeds.
-    assert reward == (no_seeds_generated * 1.5) + 0.1 # each seed worth 1.5 reward; +0.1 for base defence
+    assert reward == (no_seeds_generated * 1.5) # each seed worth 1.5 reward
     assert new_state.tree_agent.sugars == 20. # Check some sugars remain.
 
 def test_step_tree_phosphorus_absorption():
@@ -140,12 +150,15 @@ def test_step_tree_phosphorus_absorption():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     state = jdc.replace(state,
         tree_agent=jdc.replace(state.tree_agent, biomass=jnp.array(1.0))
     )
 
+    actions['tree']['s_use'] = actions['tree']['s_use'].at[()].set(0.0) # Use no sugars
     actions['tree'] = env.allocate_resources(state.tree_agent, actions['tree'])
 
     new_state, _, _ = env.step_tree(key, state, actions['tree'])
@@ -162,7 +175,9 @@ def test_step_tree_sugar_generation_low_phosphorus():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with phosphorus and allocate all to sugar generation.
     p = 10.0  # set phosphorus to 10 for this test
@@ -174,6 +189,7 @@ def test_step_tree_sugar_generation_low_phosphorus():
         )
     )
     actions['tree']['p_use'] = actions['tree']['p_use'].at[()].set(1.0) # Use all phosphorus
+    actions['tree']['s_use'] = actions['tree']['s_use'].at[()].set(0.0) # Use no sugars
 
     actions['tree'] = env.allocate_resources(state.tree_agent, actions['tree'])
 
@@ -200,7 +216,9 @@ def test_step_tree_sugar_generation_high_phosphorus():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     # Provide tree with high phosphorus and allocate all to sugar generation.
     p = 10000.0
@@ -212,6 +230,7 @@ def test_step_tree_sugar_generation_high_phosphorus():
         )
     )
     actions['tree']['p_use'] = actions['tree']['p_use'].at[()].set(1.0) # Use all phosphorus
+    actions['tree']['s_use'] = actions['tree']['s_use'].at[()].set(0.0) # Use no sugars
 
     actions['tree'] = env.allocate_resources(state.tree_agent, actions['tree'])
 
