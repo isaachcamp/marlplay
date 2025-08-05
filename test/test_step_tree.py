@@ -164,8 +164,8 @@ def test_step_tree_phosphorus_absorption():
     new_state, _, _ = env.step_tree(key, state, actions['tree'])
 
     # Check phosphorus is absorbed
-    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.05
-    assert new_state.tree_agent.phosphorus == jnp.floor(0.5 * P_AVAILABILITY)
+    # Assumes initial biomass is 1., A_c ~ 10.16
+    assert new_state.tree_agent.phosphorus == jnp.floor(0.5 * P_AVAILABILITY * TREE_P_UPTAKE_EFFICIENCY)
     assert new_state.tree_agent.sugars == 10.  # No sugars generated with no initial P.
 
 def test_step_tree_sugar_generation_low_phosphorus():
