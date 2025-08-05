@@ -312,7 +312,7 @@ class TwoSTwoR:
         }
 
         # reward += biomass_increase * 0.2 # Reward for growth
-        # reward += actions['s_trade'] * 0.01 # Reward for trading sugars
+        reward += actions['s_trade'] * 0.02 # Reward for trading sugars
         # reward += state.tree_agent.defence * 0.1 # Might not be necessary?
         reward += seeds_generated * 1.5 # Reward for each seed produced
 
