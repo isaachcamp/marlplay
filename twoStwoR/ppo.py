@@ -242,19 +242,40 @@ def make_train(config):
             _, fungus_last_val = fungus_policy_network.apply(train_state['fungus'].params, last_obs_batch[1])
 
             def _calculate_gae(traj_batch, last_val):
-                """Calculate advantages using Generalized Advantage Estimation (GAE)."""
+                """
+                Calculate advantages using Generalized Advantage Estimation (GAE),
+                scanning over trajectories. Advantages and targets are used to calculate 
+                the loss for the PPO update.
+
+                Returns
+                advantages - (NUM_STEPS, NUM_ENVS)
+                targets - (NUM_STEPS, NUM_ENVS); one-step TD estimates.
+                """
                 def _get_advantages(gae_and_next_value, transition):
                     """
                     Calculate the Generalized Advantage Estimate (GAE) for a single transition.
                     The GAE is calculated using the Temporal Difference (TD) error and the next value estimate.
                     Update the GAE using TD error advantage from the "next" step (actually previous value, but reversed)
-                    
+
                     GAMMA - the discount factor.
                     GAE_LAMBDA - the smoothing factor for GAE, varies the bias-variance trade-off.
                         if GAE_LAMBDA = 0, this is equivalent to one-step TD learning (TD(0))
                             - high bias due to uncertainty in value estimates.
                         if GAE_LAMBDA = 1, this is equivalent to Monte Carlo returns (full trajectory)
                             - high variance due to propagating errors.
+                    
+                    Args:
+                        gae_and_next_value: Tuple containing the current GAE and the next value estimate.
+                            - gae: The current GAE value.
+                            - next_value: The next value estimate for the transition.
+                        transition: Transition object containing:
+                            - done: Boolean indicating if the episode is done.
+                            - value: Value estimate for the current transition.
+                            - reward: Reward received for the current transition.
+
+                    Returns:
+                        gae_and_next_value: Tuple containing the current GAE and the next value estimate.
+                        gae: The calculated GAE for the current transition.
                     """
                     gae, next_value = gae_and_next_value # carry value for scan
                     # Unpack Transition object
@@ -280,8 +301,7 @@ def make_train(config):
                     reverse=True, # Reverse scan
                     unroll=16, # Limit unroll for computational efficiency
                 )
-                print("Advantages shape:", advantages.shape, "Targets shape:", traj_batch.value.shape)
-                return advantages, advantages + traj_batch.value # one-step TD targets
+                return advantages, advantages + traj_batch.value
 
             # Calculate advantages and targets for tree and fungus trajectories.
             # tree_traj and fungus_traj are ExperienceBuffer objects with array-like structures,
