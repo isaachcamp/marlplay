@@ -1,7 +1,6 @@
 
 from typing import NamedTuple, Tuple, Dict, List
 
-import numpy as np
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -195,13 +194,11 @@ def make_train(config):
                 env_state = jax.tree.map(conditionally_reset_array, env_state, reset_env_state)
                 obs = jax.tree.map(conditionally_reset_array, obs, reset_obs)
 
-                print("Tree value shape:", tree_value.shape, "Fungus value shape:", fungus_value.shape)
-
                 # Collect ExperienceBuffer object
                 tree_transition = ExperienceBuffer(
                     done['tree'].squeeze(),
                     tree_action,
-                    tree_value,
+                    jnp.ndarray(tree_value),
                     reward['tree'].squeeze(),
                     tree_log_prob,
                     tree_obs_batch,
@@ -210,7 +207,7 @@ def make_train(config):
                 fungus_transition = ExperienceBuffer(
                     done['fungus'].squeeze(),
                     fungus_action,
-                    fungus_value,
+                    jnp.ndarray(fungus_value),
                     reward['fungus'].squeeze(),
                     fungus_log_prob,
                     fungus_obs_batch,
