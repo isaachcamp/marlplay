@@ -198,7 +198,7 @@ def make_train(config):
                 tree_transition = ExperienceBuffer(
                     done['tree'].squeeze(),
                     tree_action,
-                    jnp.ndarray(tree_value),
+                    jnp.array(tree_value),
                     reward['tree'].squeeze(),
                     tree_log_prob,
                     tree_obs_batch,
@@ -207,7 +207,7 @@ def make_train(config):
                 fungus_transition = ExperienceBuffer(
                     done['fungus'].squeeze(),
                     fungus_action,
-                    jnp.ndarray(fungus_value),
+                    jnp.array(fungus_value),
                     reward['fungus'].squeeze(),
                     fungus_log_prob,
                     fungus_obs_batch,
@@ -346,7 +346,8 @@ def make_train(config):
                 agent_train_state, traj_batch, advantages, targets, rng = update_state
                 rng, _rng = jax.random.split(rng)
 
-                # Shuffle the batch and create minibatches.
+                # Shuffle batch and create minibatches of shape 
+                # (NUM_MINIBATCHES, MINIBATCH_SIZE, NUM_ENVS).
                 batch_size = config["MINIBATCH_SIZE"] * config["NUM_MINIBATCHES"]
                 # assert (
                 #     batch_size == config["NUM_STEPS"] * config["NUM_ACTORS"]
@@ -377,7 +378,6 @@ def make_train(config):
                     ),
                     shuffled_batch,
                 )
-                print("Minibatch advantages shape (NUM_MINIBATCHES, MINIBATCH_SIZE, NUM_ENVS):", minibatches[1].shape)
                 agent_train_state, total_loss = jax.lax.scan(
                     _update_minibatch, agent_train_state, minibatches
                 )
