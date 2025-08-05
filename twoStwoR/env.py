@@ -178,7 +178,7 @@ class TwoSTwoR:
 
         return lax.stop_gradient(obs), lax.stop_gradient(state)
 
-    def step_env(self, key: jax.Array, state: EnvState, actions: Dict[str, jax.Array]):
+    def step_env(self, key: jax.Array, state: EnvState, actions_array: Dict[str, jax.Array]):
         """
         Applies agent actions to the environment and updates the state.
         
@@ -187,7 +187,7 @@ class TwoSTwoR:
         where each action is a continuous value representing the amount of resource allocated.
         """
         # Reformat actions from Dict[str,jax.Array] to Dict[str, Dict[str, jax.Array]] using the action names.
-        actions = jax.tree.map(lambda x: dict(zip(self.actions, x)), actions)
+        actions = jax.tree.map(lambda x: dict(zip(self.actions, x)), actions_array)
 
         # Constrain allocations within available resources for both agents.
         actions['tree'] = self.constrain_allocation(actions['tree'])
