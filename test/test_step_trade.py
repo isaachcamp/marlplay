@@ -35,8 +35,9 @@ def test_step_trade_less_than_max_trade():
     # Set up the grid with one cell contact for trade
     state.grid.at[grid_size // 2, grid_size // 2].set(3)  # Set contact area for trade
 
-    # Set up actions for tree and fungus agents
+    # Generate random actions and map to action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     actions['tree']['p_trade'] = actions['tree']['p_trade'].at[()].set(0.0)
     actions['tree']['s_trade'] = actions['tree']['s_trade'].at[()].set(1.0)
@@ -90,8 +91,9 @@ def test_step_trade_exceeds_max_trade():
     # Set up the grid with one cell contact for trade
     state.grid.at[grid_size // 2, grid_size // 2].set(3)  # Set contact area for trade
 
-    # Set up actions for tree and fungus agents
+    # Generate random actions and map with action keys.
     actions = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions)
 
     actions['tree']['p_trade'] = actions['tree']['p_trade'].at[()].set(0.0)
     actions['tree']['s_trade'] = actions['tree']['s_trade'].at[()].set(1.0)

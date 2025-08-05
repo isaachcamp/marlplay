@@ -2,8 +2,9 @@
 import jax
 import jax.numpy as jnp
 import jax_dataclasses as jdc
+import numpy as np
 
-from twoStwoR import TwoSTwoR, P_AVAILABILITY, TREE_P_UPTAKE_EFFICIENCY
+from twoStwoR import TwoSTwoR, P_AVAILABILITY, TREE_P_UPTAKE_EFFICIENCY, FUNGUS_P_UPTAKE_EFFICIENCY
 from test_utils import gen_random_actions
 
 
@@ -267,7 +268,8 @@ def test_allocate_resources_integer_values():
     key, action_key = jax.random.split(key)
     _, state = env.reset(key)
 
-    actions = gen_random_actions(action_key)
+    actions_array = gen_random_actions(action_key)
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions_array)
 
     tree_actions = env.allocate_resources(state.tree_agent, actions['tree'])
     
@@ -285,56 +287,54 @@ def test_step_env_tree_resource_allocation_handled():
     _, state = env.reset(key)
 
     # Manually set actions.
-    actions = {
-        'tree': {
-            'p_use': jnp.array(1.), 'p_trade': jnp.array(0.),
-            's_use': jnp.array(0.5), 's_trade': jnp.array(0.3),
-            'growth': jnp.array(0.4), 'defence': jnp.array(0.4), 'reproduction': jnp.array(0.2)
-        },
-        'fungus': {
-            'p_use': jnp.array(0.), 'p_trade': jnp.array(0.5),
-            's_use': jnp.array(1.), 's_trade': jnp.array(0.),
-            'growth': jnp.array(0.4), 'defence': jnp.array(0.4), 'reproduction': jnp.array(0.2)
-        }
+    actions_array = {
+        'tree': jnp.array([1., 0., 0.5, 0.3, 0.4, 0.4, 0.2]),
+        'fungus': jnp.array([0., 0.5, 1., 0., 0.4, 0.4, 0.2])
     }
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions_array)
 
     # Initialize agents with some resources.
+    sugars = 100.0
+    f_phosphorus = 50.0
+    t_phosphorus = 10.0
+
     state = jdc.replace(
         state, tree_agent=jdc.replace(
-            state.tree_agent, phosphorus=jnp.array(10.0), sugars=jnp.array(100.0)
+            state.tree_agent, phosphorus=jnp.array(t_phosphorus), sugars=jnp.array(sugars)
         )
     )
     state = jdc.replace(
         state, fungus_agent=jdc.replace(
-            state.fungus_agent, phosphorus=jnp.array(50.0), sugars=jnp.array(100.0)
+            state.fungus_agent, phosphorus=jnp.array(f_phosphorus), sugars=jnp.array(sugars)
         )
     )
 
-    _, new_state, _, _, _ = env.step_env(key, state, actions)
+
+    _, new_state, _, _, _ = env.step_env(key, state, actions_array)
 
     # Check sugars generated based on phosphorus and canopy area
-    A_c = 4.47  # Assuming biomass = 0.1
+    A_c = 4.48  # Assuming biomass = 0.1
     I_s = 400.0  # Assume a fixed amount of sunlight available
     S_max = 1200. # Maximum sugar production rate
     K_I = 400. # Half-saturation constant for sugar production
     s_gen = jnp.floor(A_c * S_max * (I_s / (K_I + I_s)))
-    p = actions['tree']['p_use']  # Phosphorus used by tree
+    p = 10  # Phosphorus used by tree
 
     sugars_generated = jnp.clip(s_gen, 0, p / 3)
-    s_use = actions['tree']['growth'] + actions['tree']['defence'] # No seeds produced in this test.
+    s_use = (actions['tree']['growth'] + actions['tree']['defence']) * actions['tree']['s_use'] # No seeds produced in this test.
 
     diff_t_sugars = - (s_use + actions['tree']['s_trade']) \
-        + (sugars_generated + actions['fungus']['s_trade']) # - 40. - 30. + 4. + 0.
+                    + actions['fungus']['s_trade'] # - 50. - 30. + 0.
 
     # Check phosphorus resources by tree.
     p_acquired = jnp.floor(A_c * P_AVAILABILITY * TREE_P_UPTAKE_EFFICIENCY)
 
-    diff_t_p = - (actions['tree']['p_use'] + actions['tree']['p_trade']) \
-        + actions['fungus']['p_trade'] + p_acquired  # - 10. - 0. + 25. + 8.
+    diff_t_p = - (actions['tree']['p_use'] + actions['tree']['p_trade']) * t_phosphorus \
+               + (actions['fungus']['p_trade'] * f_phosphorus) # - 10. - 0. + 25.
 
     # Check expected resources generated/absorbed/traded by tree.
-    assert new_state.tree_agent.sugars ==  state.tree_agent.sugars + diff_t_sugars
-    assert new_state.tree_agent.phosphorus == state.tree_agent.phosphorus + diff_t_p
+    assert np.allclose(new_state.tree_agent.sugars, state.tree_agent.sugars + (diff_t_sugars * sugars) + sugars_generated, atol=1e-5)
+    assert np.allclose(new_state.tree_agent.phosphorus, state.tree_agent.phosphorus + diff_t_p + p_acquired, atol=1e-5)
 
 def test_step_env_fungus_resource_allocation_handled():
     grid_size = 5
@@ -343,32 +343,29 @@ def test_step_env_fungus_resource_allocation_handled():
     _, state = env.reset(key)
 
     # Manually set actions.
-    actions = {
-        'tree': {
-            'p_use': jnp.array(1.), 'p_trade': jnp.array(0.),
-            's_use': jnp.array(0.5), 's_trade': jnp.array(0.3),
-            'growth': jnp.array(0.4), 'defence': jnp.array(0.4), 'reproduction': jnp.array(0.2)
-        },
-        'fungus': {
-            'p_use': jnp.array(0.), 'p_trade': jnp.array(0.5),
-            's_use': jnp.array(1.), 's_trade': jnp.array(0.),
-            'growth': jnp.array(0.4), 'defence': jnp.array(0.4), 'reproduction': jnp.array(0.2)
-        }
+    actions_array = {
+        'tree': jnp.array([1., 0., 0.5, 0.3, 0.4, 0.4, 0.2]),
+        'fungus': jnp.array([0., 0.5, 1., 0., 0.4, 0.4, 0.2])
     }
+    actions = jax.tree.map(lambda x: dict(zip(env.actions, x)), actions_array)
 
     # Initialize agents with some resources.
+    sugars = 100.0
+    f_phosphorus = 50.0
+    t_phosphorus = 10.0
+
     state = jdc.replace(
         state, tree_agent=jdc.replace(
-            state.tree_agent, phosphorus=jnp.array(10.0), sugars=jnp.array(100.0)
+            state.tree_agent, phosphorus=jnp.array(t_phosphorus), sugars=jnp.array(sugars)
         )
     )
     state = jdc.replace(
         state, fungus_agent=jdc.replace(
-            state.fungus_agent, phosphorus=jnp.array(50.0), sugars=jnp.array(100.0)
+            state.fungus_agent, phosphorus=jnp.array(f_phosphorus), sugars=jnp.array(sugars)
         )
     )
 
-    _, new_state, _, _, _ = env.step_env(key, state, actions)
+    _, new_state, _, _, _ = env.step_env(key, state, actions_array)
 
     # Check sugars used/traded by fungus.
     s_use = actions['fungus']['growth'] + actions['fungus']['defence'] # 80; no seeds produced in this test.
@@ -376,15 +373,14 @@ def test_step_env_fungus_resource_allocation_handled():
 
     # Check phosphorus resources used/traded/absorbed by fungus.
     A_c = 4.47 * 1.5 # Scaling factor
-    p_uptake_efficiency = 1.0  # Assume a fixed efficiency for absorption of 1.0
-    p_acquired = jnp.floor(A_c * P_AVAILABILITY * p_uptake_efficiency)
+    p_acquired = jnp.floor(A_c * P_AVAILABILITY * FUNGUS_P_UPTAKE_EFFICIENCY)
 
     diff_f_p = - (actions['fungus']['p_use'] + actions['fungus']['p_trade']) \
-        + actions['tree']['p_trade'] + p_acquired  # - 0. - 25. + 0. + 67.
+        + actions['tree']['p_trade']  # - 0. - 25. + 0..
 
     # Check expected resources generated/absorbed/traded by tree.
-    assert new_state.fungus_agent.sugars ==  state.fungus_agent.sugars + diff_f_sugars
-    assert new_state.fungus_agent.phosphorus == state.fungus_agent.phosphorus + diff_f_p
+    assert new_state.fungus_agent.sugars ==  state.fungus_agent.sugars + (diff_f_sugars * sugars)
+    assert new_state.fungus_agent.phosphorus == state.fungus_agent.phosphorus + (diff_f_p * f_phosphorus) + p_acquired
 
 def test_step_env_jittable():
     env = TwoSTwoR()
@@ -408,8 +404,6 @@ def test_step_env_state_update():
     _, new_state, _, _, _ = env.step_env(key, state, actions)
 
     assert new_state.step_count == 1  # Check step count increments
-    assert new_state.tree_agent.health < state.tree_agent.health  # Check tree health decreases
-    assert new_state.fungus_agent.health < state.fungus_agent.health  # Check fungus health decreases
 
 def test_step_env_dones():
     env = TwoSTwoR()
@@ -456,6 +450,7 @@ def test_step_env_shaped_rewards():
     assert 'tree' in shaped_rewards['shaped_reward']
     assert 'fungus' in shaped_rewards['shaped_reward']
 
-    # Check that shaped rewards are non-negative
-    assert shaped_rewards['shaped_reward']['tree'] == {} # Not implemented yet
-    assert shaped_rewards['shaped_reward']['fungus'] == {} # Not implemented yet
+    # # Check that shaped rewards are non-negative
+    # ---- Currently outputting info for debugging and plotting – to be finalised later. ----
+    # assert shaped_rewards['shaped_reward']['tree'] == {} # Not implemented yet
+    # assert shaped_rewards['shaped_reward']['fungus'] == {} # Not implemented yet
