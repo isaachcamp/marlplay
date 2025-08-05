@@ -22,7 +22,7 @@ DEFENCE_CONSTANT = .05    # Scaling factor for defence increase
 PATHOGEN_ATTACK = 1.      # Attack strength of pathogens on agent health
 TRADE_PER_UNIT_AREA = 100      # Maximum amount of resources that can be traded per contact cell
 
-TREE_P_UPTAKE_EFFICIENCY = .05 # Fixed efficiency for P absorption of tree.
+TREE_P_UPTAKE_EFFICIENCY = .0 # Fixed efficiency for P absorption of tree.
 FUNGUS_P_UPTAKE_EFFICIENCY = 1. # Fixed efficiency for P absorption of fungus.
 
 # Do I need shaped rewards?
