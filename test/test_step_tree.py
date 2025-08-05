@@ -205,8 +205,8 @@ def test_step_tree_sugar_generation_low_phosphorus():
 
     # Check expected resources generated/absorbed.
     assert new_state.tree_agent.sugars == expected_sugars_generated + state.tree_agent.sugars
-    
-    # Assumes initial biomass is 1., A_c ~ 10.16, p_uptake efficiency is 0.05
+
+    # Assumes initial biomass is 1., A_c ~ 10.16
     assert new_state.tree_agent.phosphorus == jnp.floor(10.15 * TREE_P_UPTAKE_EFFICIENCY * P_AVAILABILITY)
 
 def test_step_tree_sugar_generation_high_phosphorus():
