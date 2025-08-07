@@ -11,3 +11,4 @@ from .env import (
 )
 from . import geometry
 from . import ppo
+from . import eval_utils
